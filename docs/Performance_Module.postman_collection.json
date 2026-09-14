@@ -1,0 +1,453 @@
+{
+  "info": {
+    "name": "HRM Performance Module",
+    "description": "Competencies, Templates, Goals, Appraisal Cycles, and PIP endpoints. Base path: /api/v1/performance. Auth: Bearer accessToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3002/api/v1/performance" },
+    { "key": "access_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Competencies",
+      "item": [
+        {
+          "name": "Create Competency",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Communication\",\n  \"description\": \"Ability to communicate clearly and effectively\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/competencies"
+          }
+        },
+        {
+          "name": "List Competencies",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/competencies?page=1&limit=10&search=&status=active"
+          }
+        },
+        {
+          "name": "Get Competency By Id",
+          "request": { "method": "GET", "url": "{{base_url}}/competencies/1" }
+        },
+        {
+          "name": "Update Competency",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Communication\",\n  \"description\": \"Updated description\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/competencies/1"
+          }
+        },
+        {
+          "name": "Delete Competency",
+          "request": { "method": "DELETE", "url": "{{base_url}}/competencies/1" }
+        }
+      ]
+    },
+    {
+      "name": "Competency Templates",
+      "item": [
+        {
+          "name": "Create Template",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard Template\",\n  \"description\": \"Default competency template\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/competency-templates"
+          }
+        },
+        {
+          "name": "List Templates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/competency-templates?page=1&limit=10&search=&status=active"
+          }
+        },
+        {
+          "name": "Get Template By Id",
+          "request": { "method": "GET", "url": "{{base_url}}/competency-templates/1" }
+        },
+        {
+          "name": "Update Template",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard Template\",\n  \"description\": \"Updated description\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/competency-templates/1"
+          }
+        },
+        {
+          "name": "Delete Template",
+          "request": { "method": "DELETE", "url": "{{base_url}}/competency-templates/1" }
+        },
+        {
+          "name": "Replace Template Items",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"competency_id\": 1, \"weightage\": 40 },\n    { \"competency_id\": 2, \"weightage\": 60 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/competency-templates/1/items",
+            "description": "Weightages must total exactly 100."
+          }
+        },
+        {
+          "name": "Create Assignment - Company Wide",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"scope_type\": \"company\"\n}" },
+            "url": "{{base_url}}/competency-templates/1/assignments"
+          }
+        },
+        {
+          "name": "Create Assignment - Department",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope_type\": \"department\",\n  \"department_id\": 12\n}"
+            },
+            "url": "{{base_url}}/competency-templates/1/assignments"
+          }
+        },
+        {
+          "name": "Create Assignment - Designation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope_type\": \"designation\",\n  \"designation_id\": 5\n}"
+            },
+            "url": "{{base_url}}/competency-templates/1/assignments"
+          }
+        },
+        {
+          "name": "Create Assignment - Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope_type\": \"employee\",\n  \"employee_id\": 88\n}"
+            },
+            "url": "{{base_url}}/competency-templates/1/assignments"
+          }
+        },
+        {
+          "name": "Delete Assignment",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/competency-templates/1/assignments/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Goals",
+      "item": [
+        {
+          "name": "Get My Goals (Employee)",
+          "request": { "method": "GET", "url": "{{base_url}}/goals/me" }
+        },
+        {
+          "name": "Get Employee Goal Summary (Admin preview)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/goals/employee/1/summary?exclude_goal_id=",
+            "description": "exclude_goal_id is optional - pass the goal being edited to exclude it from the total."
+          }
+        },
+        {
+          "name": "Create Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Improve delivery quality\",\n  \"description\": \"Reduce production bugs and improve code review turnaround\",\n  \"frequency\": \"quarterly\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-09-30\",\n  \"default_weightage\": 20,\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/goals",
+            "description": "frequency: monthly | semi_monthly | quarterly | annually"
+          }
+        },
+        {
+          "name": "List Goals",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/goals?page=1&limit=10&search=&status=active"
+          }
+        },
+        {
+          "name": "Get Goal By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/goals/1",
+            "description": "Includes assignments array."
+          }
+        },
+        {
+          "name": "Update Goal",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Improve delivery quality\",\n  \"description\": \"Updated description\",\n  \"frequency\": \"quarterly\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-09-30\",\n  \"default_weightage\": 20,\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/goals/1"
+          }
+        },
+        {
+          "name": "Delete Goal",
+          "request": { "method": "DELETE", "url": "{{base_url}}/goals/1" }
+        },
+        {
+          "name": "Assign Goal To Employees",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_ids\": [1, 2, 3],\n  \"weightage\": 20\n}"
+            },
+            "url": "{{base_url}}/goals/1/assignments",
+            "description": "Upserts by employee. Alternatively pass department_id or designation_id instead of employee_ids to bulk-assign."
+          }
+        },
+        {
+          "name": "Delete Goal Assignment",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/goals/1/assignments/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appraisal Cycles",
+      "item": [
+        {
+          "name": "Get My Summaries (Employee)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/summaries/me?page=1&limit=10&no_pagination=false"
+          }
+        },
+        {
+          "name": "Create Appraisal Cycle",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"July appraisal\",\n  \"cycle_type\": \"monthly\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-07-31\",\n  \"rating_deadline\": \"2026-08-05\",\n  \"goal_contribution\": 50,\n  \"competency_contribution\": 50,\n  \"status\": \"draft\"\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles",
+            "description": "cycle_type: monthly | semi_monthly | yearly | quarterly | custom. goal_contribution + competency_contribution must equal 100."
+          }
+        },
+        {
+          "name": "List Appraisal Cycles",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/appraisal-cycles?page=1&limit=10&search="
+          }
+        },
+        {
+          "name": "Participant Preview (before adding)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/appraisal-cycles/participant-preview/1",
+            "description": "Returns employee's assigned goals + resolved competency template before adding them as a participant."
+          }
+        },
+        {
+          "name": "Get Appraisal Cycle By Id",
+          "request": { "method": "GET", "url": "{{base_url}}/appraisal-cycles/1" }
+        },
+        {
+          "name": "Update Appraisal Cycle",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"July appraisal\",\n  \"cycle_type\": \"monthly\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-07-31\",\n  \"rating_deadline\": \"2026-08-05\",\n  \"goal_contribution\": 50,\n  \"competency_contribution\": 50,\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles/1",
+            "description": "Closed cycles cannot be edited."
+          }
+        },
+        {
+          "name": "Delete Appraisal Cycle",
+          "request": { "method": "DELETE", "url": "{{base_url}}/appraisal-cycles/1" }
+        },
+        {
+          "name": "Add Participants",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_ids\": [10, 11],\n  \"overrides\": [\n    {\n      \"employee_id\": 10,\n      \"competencies\": [\n        { \"competency_id\": 1, \"weightage\": 40 },\n        { \"competency_id\": 2, \"weightage\": 60 }\n      ]\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles/1/participants",
+            "description": "Alternative bodies: { \"company\": true } for the whole company, or { \"department_id\": 12 } / { \"designation_id\": 5 } for bulk-add by scope. Auto-activates a draft cycle."
+          }
+        },
+        {
+          "name": "List Participants",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/appraisal-cycles/1/participants?page=1&limit=10&search=&no_pagination=false"
+          }
+        },
+        {
+          "name": "Get Participant Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1",
+            "description": "Returns rating sheets (goals + competencies) for this participant."
+          }
+        },
+        {
+          "name": "Override Competency Weights",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"id\": 201, \"weightage\": 40 },\n    { \"id\": 202, \"weightage\": 60 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1/competency-weights",
+            "description": "id values are the participant's competency rating-sheet row ids (from Get Participant Detail), not competency ids. Must total 100."
+          }
+        },
+        {
+          "name": "Save Ratings (Draft)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goals\": [\n    { \"id\": 101, \"rating\": 3.5, \"achievement_status\": \"On track\", \"remarks\": \"Good progress\" }\n  ],\n  \"competencies\": [\n    { \"id\": 201, \"rating\": 4, \"remarks\": \"Strong communication\" }\n  ],\n  \"overall_remarks\": \"Solid quarter overall.\",\n  \"strengths\": \"Communication, ownership.\",\n  \"areas_for_improvement\": \"Time management.\"\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1/ratings",
+            "description": "Ratings must be between 1 and 5 (0.5 steps). Does not finalize the appraisal."
+          }
+        },
+        {
+          "name": "Submit Appraisal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goals\": [\n    { \"id\": 101, \"rating\": 3.5, \"achievement_status\": \"On track\", \"remarks\": \"Good progress\" }\n  ],\n  \"competencies\": [\n    { \"id\": 201, \"rating\": 4, \"remarks\": \"Strong communication\" }\n  ],\n  \"overall_remarks\": \"Solid quarter overall.\",\n  \"strengths\": \"Communication, ownership.\",\n  \"areas_for_improvement\": \"Time management.\",\n  \"final_rating\": 4\n}"
+            },
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1/submit",
+            "description": "final_rating is an optional manual override (1-5); otherwise the calculated weighted rating is used. All goals/competencies must be rated. final_rating <= 2 sets status to pip_suggested."
+          }
+        },
+        {
+          "name": "Get Participant Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1/summary"
+          }
+        },
+        {
+          "name": "Dismiss PIP Suggestion",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/appraisal-cycles/1/participants/1/dismiss-pip",
+            "description": "Only valid when participant status is pip_suggested."
+          }
+        }
+      ]
+    },
+    {
+      "name": "PIP",
+      "item": [
+        {
+          "name": "Get My PIPs (Employee)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/pips/me?page=1&limit=10&no_pagination=false"
+          }
+        },
+        {
+          "name": "Create PIP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participant_id\": 55,\n  \"duration_days\": 60,\n  \"focus_areas\": \"Improve code quality and communication\",\n  \"check_in_schedule\": \"Weekly on Monday\",\n  \"progress_notes\": \"Initial check-in scheduled\"\n}"
+            },
+            "url": "{{base_url}}/pips",
+            "description": "participant_id must be an appraisal participant with status pip_suggested, or submitted with final_rating <= 2. Sets participant status to pip_created."
+          }
+        },
+        {
+          "name": "List PIPs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/pips?page=1&limit=10&search=&status=active"
+          }
+        },
+        {
+          "name": "Get PIP By Id",
+          "request": { "method": "GET", "url": "{{base_url}}/pips/1" }
+        },
+        {
+          "name": "Update PIP",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"duration_days\": 90,\n  \"focus_areas\": \"Updated focus areas\",\n  \"check_in_schedule\": \"Bi-weekly\",\n  \"progress_notes\": \"Employee showing improvement\",\n  \"final_outcome\": \"Employee met expectations\"\n}"
+            },
+            "url": "{{base_url}}/pips/1",
+            "description": "status: active | completed | cancelled"
+          }
+        },
+        {
+          "name": "Delete PIP",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/pips/1",
+            "description": "Hard delete. If participant was pip_created, resets it to pip_suggested."
+          }
+        }
+      ]
+    }
+  ]
+}

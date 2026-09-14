@@ -1,0 +1,429 @@
+{
+  "info": {
+    "_postman_id": "b6f2a6f0-9e2a-4d3b-8a1a-employee-onboarding",
+    "name": "HRM - Employee Onboarding (Invite → Approval)",
+    "description": "Invite Employee flow: Company Admin invites a new hire (optionally with access_role_id — their permission role, staged until activation and shown read-only to the employee), the hire self-services their pre-boarding via a token link (no password yet), Admin reviews/approves-or-rejects documents, then activates the employee (creates their login and emails credentials).\n\nInvite links expire after 30 minutes (ONBOARDING_INVITE_EXPIRES_MINUTES, default 30). Once expired, GET/PATCH /me return 401 with `code: \"token_expired\"`. The employee does NOT get a new link directly at that point — they call 7b (Request New Invite Link): if the previous invite is actually still valid it's rejected with `code: \"invite_still_valid\"`; otherwise HR/whoever invited them (employees.invited_by) gets an email, and an admin must explicitly call 4 (Resend Invite) to actually issue + send the new link.\n\nRun order: 0) Login as Company Admin → 1) Invite Employee → 7) employee self-service using {{onboarding_token}} → [if expired: 7b, then admin re-runs 4, then retry 7] → 8-10) fill profile/documents/dependants → 11) Submit → 2/3) Admin review → 5a/5b) Approve/Reject documents → 6) Activate.\n\nSet `base_url` before running (default assumes local dev on port 3002).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3002/api/v1", "type": "string" },
+    { "key": "admin_email", "value": "", "type": "string" },
+    { "key": "admin_password", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "company_id", "value": "", "type": "string" },
+    { "key": "employee_id", "value": "", "type": "string" },
+    { "key": "access_role_id", "value": "", "type": "string" },
+    { "key": "onboarding_token", "value": "", "type": "string" },
+    { "key": "document_type_id", "value": "1", "type": "string" },
+    { "key": "onboarding_document_id", "value": "", "type": "string" },
+    { "key": "dependant_id", "value": "", "type": "string" },
+    { "key": "uploaded_file_url", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Login (Company Admin)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Convenience login to obtain a Company Admin Bearer token. Fills admin_token and company_id automatically."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('admin_token', body.data.token);",
+              "  if (body.data.user && body.data.user.company_id) {",
+              "    pm.collectionVariables.set('company_id', body.data.user.company_id);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "1. Invite Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bilal\",\n  \"last_name\": \"Ahmed\",\n  \"personal_email\": \"bilal.ahmed@example.com\",\n  \"work_email\": \"\",\n  \"phone_number\": \"+923211234567\",\n  \"employee_code\": \"MTU-2026-042\",\n  \"designation_id\": null,\n  \"department_id\": null,\n  \"employee_type_id\": null,\n  \"work_location_id\": null,\n  \"shift_id\": null,\n  \"joining_date\": \"2026-04-15\",\n  \"line_manager_id\": null,\n  \"access_role_id\": {{access_role_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/invite",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "invite"]
+            },
+            "description": "Only first_name, last_name, personal_email, employee_code are required. designation/department accept free-text strings instead of the _id fields too. work_email is optional — leave blank and it defaults to personal_email, so the employee record always has a usable email (matches how Add Employee-created employees look). Response includes a top-level `email` field too (work_email falling back to personal_email) for consistency with GET /employees.\n\naccess_role_id is optional — the permission role Company Admin assigns at invite time. There's no `users` row yet (no login exists until activation), so it's staged on employee_job_details and returned read-only to the employee under official.access_role_id / official.access_role_name in GET /employee-onboarding/me and GET /employees/:id. The employee can never edit it (PATCH /me never touches it). At activation (step 6) it's copied onto the new users.access_role_id so the permission actually takes effect on login. Response also echoes access_role_id / access_role_name back for confirmation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('employee_id', body.data.employee_id);",
+                  "  const url = body.data.invite_url || '';",
+                  "  const match = url.match(/[?&]token=([^&]+)/);",
+                  "  if (match) {",
+                  "    pm.collectionVariables.set('onboarding_token', decodeURIComponent(match[1]));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. List Employees (filter by onboarding status)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employees?status=pending_invite&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["employees"],
+              "query": [
+                { "key": "status", "value": "pending_invite" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "No separate onboarding list endpoint — the existing GET /employees now surfaces invited/pre-boarding employees too. `status` accepts active, inactive, pending, pending_invite, or pre_boarding. Each employee in the response also carries an onboarding_status field, and official.access_role_id / official.access_role_name (falls back to the staged invite-time value until activation, same as the detail endpoints)."
+          }
+        },
+        {
+          "name": "3. Get Onboarding Employee By Id (submission detail)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/{{employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "{{employee_id}}"]
+            },
+            "description": "This one stays a dedicated endpoint (unlike listing) — it returns the document checklist with approve/reject state and skip reasons (onboarding_documents[]), which the plain GET /employees/:id detail view doesn't include. It also returns documents[] (the merged Add-Employee-style view, which now includes onboarding uploads too, tagged source: \"onboarding\")."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const docs = (body.data && body.data.onboarding_documents) || [];",
+                  "  const withFile = docs.find(d => d.onboarding_document_id);",
+                  "  if (withFile) {",
+                  "    pm.collectionVariables.set('onboarding_document_id', withFile.onboarding_document_id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Resend Invite",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/{{employee_id}}/resend",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "{{employee_id}}", "resend"]
+            },
+            "description": "The only step that actually generates a new token/link and emails it to the employee — resending is always an explicit Company Admin action. Normally called after receiving the \"X requested a new onboarding invite link\" email triggered by 7b, but can be called any time. Resets invited_at, restarting the 30-minute validity window."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const url = body.data.invite_url || '';",
+                  "  const match = url.match(/[?&]token=([^&]+)/);",
+                  "  if (match) {",
+                  "    pm.collectionVariables.set('onboarding_token', decodeURIComponent(match[1]));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5a. Approve Document",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/{{employee_id}}/documents/{{onboarding_document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "{{employee_id}}", "documents", "{{onboarding_document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "5b. Reject Document",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\",\n  \"reason\": \"Please upload a clearer scan — bottom section unreadable.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/{{employee_id}}/documents/{{onboarding_document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "{{employee_id}}", "documents", "{{onboarding_document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Activate Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"work_email\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/{{employee_id}}/activate",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "{{employee_id}}", "activate"]
+            },
+            "description": "Leave work_email blank to use personal_email as the login. Fails until the employee has submitted (pre_boarding) and no document is stuck in rejected. Also copies the access_role_id staged at invite time (step 1) onto the new users row, so the permission role actually takes effect."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employee (onboarding_token, no login)",
+      "item": [
+        {
+          "name": "7. Get My Onboarding Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{onboarding_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me"]
+            },
+            "description": "Returns the full profile — personal, official (access_role_id/access_role_name read-only), salary, documents[] (now includes onboarding uploads too, alongside any employee_profile/hr_request docs — check the source field), dependants[], employee_bank, and the separate onboarding_documents[] checklist (approval status/skip/rejection reasons).\n\nIf the token has expired (30 min after it was issued), this returns 401 with `code: \"token_expired\"` — go to 7b instead of retrying this."
+          }
+        },
+        {
+          "name": "7b. Request New Invite Link (after token expires)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{onboarding_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me/request-resend",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me", "request-resend"]
+            },
+            "description": "Call this once 7 starts returning `code: \"token_expired\"` — send the same (now-expired) token here; it's only used to identify who's asking, not required to still be valid.\n\nThis never returns a new link directly:\n- If the previous invite is actually still within its 30-minute window → 409 with `code: \"invite_still_valid\"` (\"You already have a valid, active invite link...\").\n- If it's genuinely expired → 200 (\"Your request for a new invite link has been submitted...\") and an email goes to whoever invited the employee (employees.invited_by). They then have to explicitly run 4 (Resend Invite) to actually issue and send the new link — grab the fresh token from that response and update {{onboarding_token}} before continuing."
+          }
+        },
+        {
+          "name": "8. Update My Profile (personal + bank + documents + dependants)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{onboarding_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personal\": {\n    \"first_name\": \"Bilal\",\n    \"last_name\": \"Ahmed\",\n    \"dob\": \"1998-05-20\",\n    \"gender\": \"male\",\n    \"marital_status\": \"Single\",\n    \"cnic\": \"42101-1234567-1\",\n    \"cnic_expiry\": \"2030-01-01\",\n    \"ntn_no\": \"1234567\",\n    \"country\": \"Pakistan\",\n    \"state_province\": \"Sindh\",\n    \"city\": \"Karachi\",\n    \"permanent_address\": \"House 12, Street 4, Karachi\",\n    \"current_address\": \"Same as permanent\",\n    \"phone_no\": \"+923211234567\",\n    \"religion\": \"Islam\",\n    \"emergency_contact_name\": \"Hassan Raza\",\n    \"emergency_contact_no\": \"+923211234568\"\n  },\n  \"employee_bank\": {\n    \"bank_name\": \"Meezan Bank\",\n    \"account_title\": \"Bilal Ahmed\",\n    \"account_number\": \"01234567890123\",\n    \"iban\": \"PK36MEZN0001234567890123\",\n    \"branch_code\": \"0123\"\n  },\n  \"documents\": [\n    { \"document_type_id\": {{document_type_id}}, \"file_url\": \"{{uploaded_file_url}}\", \"file_name\": \"cnic-front.pdf\" }\n  ],\n  \"dependants\": [\n    { \"full_name\": \"Ayesha Ahmed\", \"phone_no\": \"+923211234569\", \"relationship\": \"spouse\" },\n    { \"full_name\": \"Ali Ahmed\", \"phone_no\": \"+923211234570\", \"relationship\": \"child\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me"]
+            },
+            "description": "All four sections — personal, employee_bank, documents, dependants — are independently optional; only the ones present in the body are touched. No official/designation/department/salary/access_role_id fields here — those stay Company Admin-only (see step 1).\n\nemployee_bank aliases: employeeBank, bank_details, employee_bank_details, bank all also accepted.\n\ndocuments: array, multiple entries in one call, upserted one by one against onboarding_documents keyed by document_type_id. Each entry is either { document_type_id, file_url, file_name } or { document_type_id, skip: true, skip_reason } to skip a mandatory doc with a reason. Get file_url from 9a first. This does the same thing as 9b/9c, just inline and batched — 9b/9c still work standalone too.\n\ndependants: array, multiple entries, replaces the full dependant list each call. Pass an existing id (or {\"id\": ...}) to keep one, or an object with full_name/phone_no/relationship (no id) to create a brand-new dependant inline — this is the only way that actually works during onboarding: POST /dependants (step 10a) requires a real login Bearer token (userId+email claims), which the onboarding_token doesn't have, so it 401s if called directly here."
+          }
+        },
+        {
+          "name": "9a. Upload File (generic)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "image", "type": "file", "src": [] }]
+            },
+            "url": {
+              "raw": "{{base_url}}/uploads/image",
+              "host": ["{{base_url}}"],
+              "path": ["uploads", "image"]
+            },
+            "description": "Public endpoint, no Authorization needed. Pick a file for the 'image' form field (images or PDFs both accepted here)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data.image_url) {",
+                  "    pm.collectionVariables.set('uploaded_file_url', body.data.image_url);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9b. Attach / Upsert Onboarding Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{onboarding_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_type_id\": {{document_type_id}},\n  \"file_url\": \"{{uploaded_file_url}}\",\n  \"file_name\": \"cnic-front.pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me/documents",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me", "documents"]
+            },
+            "description": "Upsert keyed by document_type_id — calling again replaces the prior file/skip and clears any rejection. One document per call — step 8's documents[] array does the same thing but for multiple documents in one request."
+          }
+        },
+        {
+          "name": "9c. Skip Document (with reason)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{onboarding_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_type_id\": {{document_type_id}},\n  \"skip\": true,\n  \"skip_reason\": \"HEC verification pending — will upload once received.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me/documents",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me", "documents"]
+            }
+          }
+        },
+        {
+          "name": "10a. Create Dependant (does NOT work with onboarding_token — see note)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": {{company_id}},\n  \"full_name\": \"Ayesha Ahmed\",\n  \"relationship\": \"spouse\",\n  \"phone_no\": \"+923211234569\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/dependants",
+              "host": ["{{base_url}}"],
+              "path": ["dependants"]
+            },
+            "description": "NOTE: despite looking public, this route is gated by protect('dependants','add') → requireAuth, which needs a real login JWT carrying userId + email. The onboarding_token (only {employeeId, companyId, purpose}) does NOT satisfy that and will 401 here. During onboarding, don't use this step — create dependants inline instead via step 8's dependants[] array (objects with full_name/phone_no/relationship, no id needed, multiple at once). This endpoint is kept here for reference / for flows that already hold a real Company Admin or logged-in login token (e.g. admin managing dependants directly)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data.dependant) {",
+                  "    pm.collectionVariables.set('dependant_id', body.data.dependant.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10b. Attach Dependants To My Profile (existing ids only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{onboarding_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dependant_ids\": [{{dependant_id}}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me/dependants",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me", "dependants"]
+            },
+            "description": "Replaces the full dependant list each call — include every id you want kept. Only takes ids (of dependants that already exist), so it's only useful once a dependant already has an id (e.g. from an admin-side flow). For onboarding self-service, prefer step 8's dependants[] array, which can create brand-new dependants inline in the same call and also replaces the full list."
+          }
+        },
+        {
+          "name": "11. Submit Onboarding Application",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{onboarding_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-onboarding/me/submit",
+              "host": ["{{base_url}}"],
+              "path": ["employee-onboarding", "me", "submit"]
+            },
+            "description": "Fails 400 with a missing_documents list if any mandatory document type has no upload/skip yet, or is still rejected."
+          }
+        }
+      ]
+    }
+  ]
+}

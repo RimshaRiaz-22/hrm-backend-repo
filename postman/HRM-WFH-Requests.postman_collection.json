@@ -1,0 +1,467 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-wfh-hrm-collection",
+    "name": "HRM - Work From Home (WFH) APIs",
+    "description": "Employee and Admin/HR APIs for Work From Home requests.\n\nBase path: `/api/v1/requests`\n\n**Auth:** `Authorization: Bearer <token>` from `POST /api/v1/auth/login`\n\n**WFH create body:**\n```json\n{\n  \"request_type\": \"wfh\",\n  \"details\": {\n    \"dates\": [\"2026-06-20\", \"2026-06-21\"],\n    \"reason\": \"Need to work remotely\",\n    \"work_plan\": \"Complete sprint tasks and attend standup\"\n  }\n}\n```\n\n**Rules:**\n- Dates must be today or future (`YYYY-MM-DD`)\n- Monthly limit: company `max_wfh_days_per_month` (default 8)\n- WFH skips manager step — HR/Admin approves directly\n- On approve: creates `attendance` rows with `work_mode=remote`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3002/api/v1"
+    },
+    {
+      "key": "employeeEmail",
+      "value": "employee@example.com"
+    },
+    {
+      "key": "employeePassword",
+      "value": "your-password"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "your-password"
+    },
+    {
+      "key": "employeeToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "wfhRequestId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Employee Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 200 && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('employeeToken', json.data.token);",
+                  "  console.log('employeeToken saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login as employee. Saves `employeeToken` from `data.token`."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin / HR Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 200 && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('adminToken', json.data.token);",
+                  "  console.log('adminToken saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login as company_admin, admin, or hr. Saves `adminToken`.\n\nWFH **approve** requires: `super_admin`, `company_admin`, `admin`, or `hr`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Employee - WFH",
+      "item": [
+        {
+          "name": "Create WFH Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('wfhRequestId', String(json.data.id));",
+                  "  console.log('wfhRequestId saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_type\": \"wfh\",\n  \"details\": {\n    \"dates\": [\"2026-06-20\", \"2026-06-21\"],\n    \"reason\": \"Family commitment at home\",\n    \"work_plan\": \"Sprint tasks, code review, and daily standup on Teams\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/requests",
+            "description": "Submit a new WFH request.\n\n**Required details:**\n- `dates` — array of `YYYY-MM-DD` (today or future, unique)\n- `reason` — string, max 2000 chars\n- `work_plan` — string, max 2000 chars\n\n**201 response** includes WFH `details.dates`, `details.reason`, `details.work_plan`."
+          },
+          "response": []
+        },
+        {
+          "name": "List My WFH Requests",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/my?request_type=wfh&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["requests", "my"],
+              "query": [
+                {
+                  "key": "request_type",
+                  "value": "wfh"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "no_pagination",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Employee's own WFH requests.\n\n**Query params:**\n- `request_type=wfh` (optional filter)\n- `status` — pending | approved | rejected | cancelled\n- `page`, `limit` (default 1, 10; max limit 100)\n- `no_pagination=true` — return full list"
+          },
+          "response": []
+        },
+        {
+          "name": "List My Pending WFH Requests",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/my?request_type=wfh&status=pending&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["requests", "my"],
+              "query": [
+                {
+                  "key": "request_type",
+                  "value": "wfh"
+                },
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Filter employee WFH requests with `status=pending`."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel My WFH Request",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": "{{baseUrl}}/requests/{{wfhRequestId}}/cancel",
+            "description": "Cancel own **pending** WFH request.\n\nSet `wfhRequestId` collection variable (auto-set after Create)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin / HR - WFH",
+      "item": [
+        {
+          "name": "List Pending WFH Requests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const items = json.data && json.data.items;",
+                  "if (Array.isArray(items) && items.length > 0) {",
+                  "  const wfh = items.find(i => i.request_type === 'wfh') || items[0];",
+                  "  if (wfh && wfh.id) {",
+                  "    pm.collectionVariables.set('wfhRequestId', String(wfh.id));",
+                  "    console.log('wfhRequestId saved from list:', wfh.id);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/pending?request_type=wfh&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["requests", "pending"],
+              "query": [
+                {
+                  "key": "request_type",
+                  "value": "wfh"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Pending WFH requests for review.\n\n**Roles:** super_admin, company_admin, admin, hr, manager, department_manager\n\nScoped to reviewer's company (except super_admin)."
+          },
+          "response": []
+        },
+        {
+          "name": "List All WFH Requests (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/admin?request_type=wfh&status=all&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["requests", "admin"],
+              "query": [
+                {
+                  "key": "request_type",
+                  "value": "wfh"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "all | pending | approved | rejected | cancelled"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "All WFH requests (excludes cancelled when `status=all`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve WFH Request",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": "{{baseUrl}}/requests/{{wfhRequestId}}/approve",
+            "description": "Approve pending WFH request.\n\n**Only:** super_admin, company_admin, admin, hr\n\n**Effect:** Creates/updates `attendance` for each WFH date (`work_mode=remote`, `status=present`). Employee can punch outside geofence on approved WFH days."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject WFH Request",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hr_comment\": \"WFH not approved for these dates. Please use leave instead.\"\n}"
+            },
+            "url": "{{baseUrl}}/requests/{{wfhRequestId}}/reject",
+            "description": "Reject pending WFH request. `hr_comment` is **required**."
+          },
+          "response": []
+        },
+        {
+          "name": "Update WFH Request Status (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": "{{baseUrl}}/requests/{{wfhRequestId}}",
+            "description": "Alternative status update endpoint.\n\n`status`: pending | approved | rejected\n\nIf `rejected`, include `hr_comment`.\n\nApproving applies WFH attendance records (same as `/approve`)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "info": {
+    "_postman_id": "fcm-hrm-collection-2026",
+    "name": "HRM - FCM Push Notifications",
+    "description": "Test Firebase Cloud Messaging (FCM) push notifications.\n\n**Prerequisites:**\n1. Backend running (`npm run dev`)\n2. `firebase-service-account.json` configured in backend\n3. Real FCM device token from mobile app (`com.company.hrm`)\n\n**Test order:**\n1. Employee Login\n2. Register FCM Token\n3. List FCM Tokens (optional)\n4. Send Test Notification\n5. Unregister FCM Token (on logout)\n\n**Auth:** `Authorization: Bearer {{employeeToken}}`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3002/api/v1"
+    },
+    {
+      "key": "employeeEmail",
+      "value": "employee@example.com"
+    },
+    {
+      "key": "employeePassword",
+      "value": "your-password"
+    },
+    {
+      "key": "employeeToken",
+      "value": ""
+    },
+    {
+      "key": "fcmToken",
+      "value": "PASTE_DEVICE_FCM_TOKEN_HERE"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Employee Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 200 && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('employeeToken', json.data.token);",
+                  "  pm.environment.set('employeeToken', json.data.token);",
+                  "  console.log('employeeToken saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\",\n  \"device_id\": \"postman-device-001\",\n  \"fcm_token\": \"{{fcmToken}}\",\n  \"platform\": \"android\",\n  \"device_label\": \"Postman Test Device\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login and auto-save JWT. Optional fields register the device + FCM token in one call."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. FCM Device Tokens",
+      "item": [
+        {
+          "name": "Register FCM Token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{employeeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"{{fcmToken}}\",\n  \"platform\": \"android\",\n  \"device_label\": \"Postman Test Device\"\n}"
+            },
+            "url": "{{baseUrl}}/devices/fcm-token",
+            "description": "Register or update the device FCM token for the logged-in user.\n\nSet `fcmToken` collection variable to the token from your mobile app."
+          },
+          "response": []
+        },
+        {
+          "name": "List My FCM Tokens",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{employeeToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/devices/fcm-tokens",
+            "description": "List active registered tokens and FCM backend config status."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Test Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{employeeToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/devices/fcm-test",
+            "description": "Sends **HRM Test Notification** to all active tokens for the logged-in user.\n\nCheck your phone after success (`success_count: 1`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Unregister FCM Token",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{employeeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"{{fcmToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/devices/fcm-token",
+            "description": "Deactivate one token. Send `{}` to deactivate all tokens for the user."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "info": {
+    "_postman_id": "c7a3f1e0-2b4d-4a1e-9c3f-training-lms",
+    "name": "HRM - Training / LMS",
+    "description": "Company Admin / HR manage training materials (video or PDF) via /training. Employees (real login, not the onboarding token) view them via /employee-training and mark them complete via /employee-training/complete, which sets employees.lms_completed_at.\n\nThis matters for employees activated through the onboarding invite flow (see Employee_Onboarding_Invite_Flow.postman_collection.json, step 6 Activate) — they get employees.lms_required = true, and the frontend hides the rest of the Employee Portal behind the Learning tab until lms_completed_at is set. Employees added directly (Add Employee) are unaffected.\n\nUploads for training files go through the dedicated POST /uploads/training-file endpoint (not /uploads/image) — it accepts PDF or common video mimetypes and allows up to 300MB.\n\nPermissions: Company Admin has access to everything by default. HR Manager and Employee system-template roles were auto-granted `training` / `employee_training` permissions respectively when this module was deployed (existing custom access roles may need it granted manually via Roles & Permissions).\n\nRun order: 0) Login (Company Admin) → Admin folder: 1) Upload Training File → 2) Create Training Material → 3) List → 4) Get By Id → 5) Update → 6) Delete. Employee folder: 0b) Login (Employee, real credentials from an activated account) → 7) List My Training Materials → 8) Mark My Training Complete.\n\nSet `base_url` before running (default assumes local dev on port 3002).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3002/api/v1", "type": "string" },
+    { "key": "admin_email", "value": "", "type": "string" },
+    { "key": "admin_password", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "company_id", "value": "", "type": "string" },
+    { "key": "employee_email", "value": "", "type": "string" },
+    { "key": "employee_password", "value": "", "type": "string" },
+    { "key": "employee_access_token", "value": "", "type": "string" },
+    { "key": "training_material_id", "value": "", "type": "string" },
+    { "key": "uploaded_file_url", "value": "", "type": "string" },
+    { "key": "uploaded_file_name", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Login (Company Admin)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Convenience login to obtain a Company Admin Bearer token. Fills admin_token and company_id automatically."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('admin_token', body.data.token);",
+              "  if (body.data.user && body.data.user.company_id) {",
+              "    pm.collectionVariables.set('company_id', body.data.user.company_id);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (Company Admin / HR)",
+      "item": [
+        {
+          "name": "1. Upload Training File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": [] }]
+            },
+            "url": {
+              "raw": "{{base_url}}/uploads/training-file",
+              "host": ["{{base_url}}"],
+              "path": ["uploads", "training-file"]
+            },
+            "description": "Public endpoint, no Authorization needed — same pattern as /uploads/image but a separate multer config with a much higher size limit (300MB) and a different mimetype allowlist: application/pdf, video/mp4, video/webm, video/quicktime, video/x-msvideo.\n\nPick a PDF or video file for the 'file' form field. The returned file_url is what you pass into Create/Update Training Material below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data.file_url) {",
+                  "    pm.collectionVariables.set('uploaded_file_url', body.data.file_url);",
+                  "  }",
+                  "  if (body.data && body.data.original_name) {",
+                  "    pm.collectionVariables.set('uploaded_file_name', body.data.original_name);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Create Training Material",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Company Code of Conduct\",\n  \"description\": \"An overview of our workplace policies and expectations.\",\n  \"type\": \"pdf\",\n  \"file_url\": \"{{uploaded_file_url}}\",\n  \"file_name\": \"{{uploaded_file_name}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/training",
+              "host": ["{{base_url}}"],
+              "path": ["training"]
+            },
+            "description": "company_id is taken from the admin's own token — not a request field. `type` must be \"video\" or \"pdf\". `name` and `file_url` are required; `description` and `file_name` are optional."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('training_material_id', body.data.training_material.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. List Training Materials",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/training?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["training"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Company-scoped list (from the admin's token), newest first. Optional `search` matches on name; `no_pagination=true` returns the full list."
+          }
+        },
+        {
+          "name": "4. Get Training Material By Id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/training/{{training_material_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["training", "{{training_material_id}}"]
+            }
+          }
+        },
+        {
+          "name": "5. Update Training Material",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated: please review before your first day on site.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/training/{{training_material_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["training", "{{training_material_id}}"]
+            },
+            "description": "Any of name, description, type, file_url, file_name, is_active may be included — only the fields present are updated. Setting is_active: false has the same effect as Delete (soft delete)."
+          }
+        },
+        {
+          "name": "6. Delete Training Material",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/training/{{training_material_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["training", "{{training_material_id}}"]
+            },
+            "description": "Soft delete (is_active = false) — the record stays for any employee who already completed training, but it drops off the employee-facing list and the admin list unless you add an is_active filter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employee (real login)",
+      "item": [
+        {
+          "name": "0b. Login (Employee)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employee_email}}\",\n  \"password\": \"{{employee_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Use the login email + temporary password an employee received after Activate Employee (see Employee_Onboarding_Invite_Flow.postman_collection.json step 6) — these endpoints need a real login session, not the onboarding token. Fills employee_access_token automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('employee_access_token', body.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. List My Training Materials",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employee_access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-training",
+              "host": ["{{base_url}}"],
+              "path": ["employee-training"]
+            },
+            "description": "Returns training_materials[] (id, name, description, type, file_url, file_name) for this employee's company, plus lms_required and lms_completed_at so the frontend knows whether to show the completion gate."
+          }
+        },
+        {
+          "name": "8. Mark My Training Complete",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employee_access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/employee-training/complete",
+              "host": ["{{base_url}}"],
+              "path": ["employee-training", "complete"]
+            },
+            "description": "Sets employees.lms_completed_at (first call only — idempotent, later calls keep the original timestamp). Once set, the frontend unlocks the rest of the Employee Portal."
+          }
+        }
+      ]
+    }
+  ]
+}
