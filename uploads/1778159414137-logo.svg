@@ -1,0 +1,42 @@
+<svg width="600" height="140" viewBox="0 0 600 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ICON GROUP -->
+  <g transform="translate(0,5)">
+    
+    <!-- Calendar -->
+    <rect x="10" y="10" width="80" height="70" rx="12" fill="#1E5ED7"></rect>
+    
+    <!-- Calendar rings -->
+    <rect x="20" y="0" width="8" height="18" rx="4" fill="#1E5ED7"></rect>
+    <rect x="72" y="0" width="8" height="18" rx="4" fill="#1E5ED7"></rect>
+
+    <!-- Grid squares -->
+    <g fill="#A7C7FF">
+      <rect x="20" y="25" width="10" height="10" rx="2"></rect>
+      <rect x="35" y="25" width="10" height="10" rx="2"></rect>
+      <rect x="50" y="25" width="10" height="10" rx="2"></rect>
+      <rect x="65" y="25" width="10" height="10" rx="2"></rect>
+
+      <rect x="20" y="40" width="10" height="10" rx="2"></rect>
+      <rect x="35" y="40" width="10" height="10" rx="2"></rect>
+      <rect x="50" y="40" width="10" height="10" rx="2"></rect>
+      <rect x="65" y="40" width="10" height="10" rx="2"></rect>
+    </g>
+
+    <!-- Check circle -->
+    <circle cx="75" cy="55" r="14" fill="#2F7BFF"></circle>
+    <path d="M69 55L73 59L81 50" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+
+    <!-- Book -->
+    <path d="M5 85 Q50 70 95 85 L95 95 Q50 80 5 95 Z" fill="#1E5ED7"></path>
+    <path d="M5 95 Q50 80 95 95 L95 105 Q50 90 5 105 Z" fill="#2F7BFF"></path>
+
+  </g>
+
+  <!-- TEXT -->
+  <text x="120" y="80" font-family="Arial, sans-serif" font-size="48" font-weight="700">
+    <tspan fill="#0A1A3F">Study </tspan>
+    <tspan fill="#2F7BFF">Planner</tspan>
+  </text>
+
+</svg>
