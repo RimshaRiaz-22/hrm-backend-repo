@@ -1,0 +1,48 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "start": "nodemon server.js",
+    "dev": "nodemon server.js",
+    "start:node": "node server.js",
+    "migrate:documents": "node scripts/migrate-documents.js",
+    "migrate:access-control": "node scripts/migrate-access-control.js",
+    "migrate:fcm-tokens": "node scripts/migrate-fcm-tokens.js",
+    "fcm:test": "node scripts/send-fcm-test.js",
+    "test:payslip": "node scripts/test-payslip-pdf.js",
+    "test:payslip-email": "node scripts/test-payslip-email-send.js",
+    "test:email-failure-envelope": "node scripts/test-email-failure-envelope.js",
+    "test:email-bounce-live": "node scripts/test-email-bounce-live.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "@pdfsmaller/pdf-encrypt": "^1.0.2",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "firebase-admin": "^14.1.0",
+    "iban": "^0.0.14",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "libphonenumber-js": "^1.13.9",
+    "multer": "^2.1.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^8.0.5",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.19.1",
+    "pg": "^8.20.0",
+    "sharp": "^0.35.3",
+    "tz-lookup": "^6.1.25"
+  }
+}

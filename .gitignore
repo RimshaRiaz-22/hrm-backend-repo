@@ -1,0 +1,12 @@
+node_modules/
+.env
+*.zip
+google-services.json
+firebase-service-account.json
+*firebase-adminsdk*.json
+service-account.json
+uploads/
+
+__MACOSX/
+._*
+.DS_Store
